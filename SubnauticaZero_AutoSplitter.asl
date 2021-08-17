@@ -9,11 +9,6 @@ state ("SubnauticaZero")
     //bool largeWorldStreamerIdle: "UnityPlayer.dll", 0x1755010, 0x10, 0xd0, 0x8, 0x60, 0x68, 0x30, 0x1ab;
 }
 
-update
-{
-    
-}
-
 start
 {
     if (current.introPlaying && !old.playerInputEnabled && current.playerInputEnabled) { return true; }
