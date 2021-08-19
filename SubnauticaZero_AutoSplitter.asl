@@ -5,7 +5,12 @@ state ("SubnauticaZero")
 
     ushort processingCell: "UnityPlayer.dll", 0x17951d8, 0xd0, 0x8, 0x60, 0x68, 0x30, 0x38, 0x28;
     bool largeWorldStreamerIdle: "UnityPlayer.dll", 0x1755010, 0x10, 0xd0, 0x8, 0x60, 0x68, 0x30, 0x1ab;
-    bool deathLoadingScreenActive: "UnityPlayer.dll", 0x1793f68, 0x30, 0x7c0, 0xe90, 0x38, 0x20, 0x20, 0x20;
+    bool deathLoadingScreenActive: "UnityPlayer.dll", 0x1793f68, 0x60, 0x7c0, 0xe90, 0x38, 0x20, 0x20, 0x20;
+}
+
+startup
+{
+    settings.Add("loadRemove", false, "Remove death loading time (dont use yet)");
 }
 
 update
@@ -20,6 +25,6 @@ start
 
 isLoading
 {
-    if (current.deathLoadingScreenActive) { return true; }
+    if (current.deathLoadingScreenActive && settings["loadRemove"]) { return true; }
     else { return false; }
 }
