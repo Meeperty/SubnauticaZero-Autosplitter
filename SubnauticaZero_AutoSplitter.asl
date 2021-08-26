@@ -1,4 +1,4 @@
-state ("SubnauticaZero") 
+state ("SubnauticaZero")
 {
     //bool playerInputEnabled: "UnityPlayer.dll", 0x1795118, 0x20, 0xd0, 0x8, 0x60, 0x40, 0x48, 0x68;
     //bool introPlaying: "UnityPlayer.dll", 0x179c578, 0xd0, 0xb0, 0x20, 0xd0, 0x100, 0xa0, 0xa8;
@@ -32,12 +32,18 @@ init
 
         while (!vars.token.IsCancellationRequested)
         {
+            int p = 0;
             foreach (var page in game.MemoryPages())
             {
+                vars.Dbg("p: " + p++);
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
                 if (vars.player == IntPtr.Zero && (vars.player = scanner.Scan(playerTarget)) != IntPtr.Zero) 
-                    { vars.Dbg("Player main pointer found at " + vars.player.ToString("X")); }
+                {
+                    vars.Dbg("Player main pointer found at " + vars.player.ToString("X"));
+                    break;
+                }
+                if (p % 100 == 0) { Thread.Sleep(20); } //for less cpu use
             }
             if (vars.player != IntPtr.Zero)
             {
@@ -50,8 +56,9 @@ init
                 
                 break;
             }
+            Thread.Sleep(500);
         }
-        vars.playerInputEnabled = new MemoryWatcher<bool>(new DeepPointer(vars.player, 0x68));
+        vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         
     });
     vars.sigScanThread.Start();
@@ -73,4 +80,14 @@ isLoading
 {
     //if (current.deathLoadingScreenActive && settings["loadRemove"]) { return true; }
     //else { return false; }
+}
+
+exit
+{
+    vars.tokenSource.Cancel();
+}
+
+shutdown
+{
+    vars.tokenSource.Cancel();
 }
