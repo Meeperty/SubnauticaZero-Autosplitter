@@ -14,8 +14,8 @@ startup
 
     vars.playerSigOffset = 2;
     vars.playerSignature = "48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 c0 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 90";
-    vars.largeWorldStreamerOffset = 9;
-    vars.largeWorldStreamerSignature = "48 89 75 f8 48 8b f1 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 d8 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 48 8d 6d 00 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 48 8b 45 d8 c6 86";
+    vars.uGUISigOffset = 10;
+    vars.uGUISignature = "55 48 8b ec 48 83 ec 20 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 8b 08 33 d2 48 8d ad ?? ?? ?? ?? 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 85 c0 74 2c 48 b8";
 
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
 }
@@ -32,45 +32,56 @@ init
         
         var playerTarget = new SigScanTarget(vars.playerSigOffset, vars.playerSignature);
         vars.player = IntPtr.Zero;
-        var largeWorldTarget = new SigScanTarget(vars.largeWorldStreamerOffset, vars.largeWorldStreamerSignature);
-        vars.largeWorldStreamer = IntPtr.Zero;
+        var uGUITarget = new SigScanTarget(vars.uGUISigOffset, vars.uGUISignature);
+        vars.uGUI = IntPtr.Zero;
 
         while (!vars.token.IsCancellationRequested)
         {
             int p = 0;
             foreach (var page in game.MemoryPages())
             {
-                vars.Dbg("p: " + p++);
+                //vars.Dbg("p: " + p
+                p++;
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
                 if (vars.player == IntPtr.Zero && (vars.player = scanner.Scan(playerTarget)) != IntPtr.Zero) 
                 {
                     vars.Dbg("Player main pointer found at " + vars.player.ToString("X"));
                 }
-                if (vars.largeWorldStreamer == IntPtr.Zero && (vars.largeWorldStreamer = scanner.Scan(largeWorldTarget)) != IntPtr.Zero)
+                if(vars.uGUI == IntPtr.Zero && (vars.uGUI = scanner.Scan(uGUITarget)) != IntPtr.Zero)
                 {
-                    vars.Dbg("largeWorldStreamer main pointer found at 0x" + vars.largeWorldStreamer.ToString("X"));
+                    vars.Dbg("uGUI main pointer found at " + vars.uGUI.ToString("X"));
                 }
-                if (p % 100 == 0) { Thread.Sleep(20); } //for less cpu use
+                if (p % 50 == 0) { Thread.Sleep(20); } //for less cpu use
             }
-            if (vars.player != IntPtr.Zero && vars.largeWorldStreamer != IntPtr.Zero)
+            if (vars.player != IntPtr.Zero && vars.uGUI != IntPtr.Zero)
             {
+                //DONT FORGET THE 0x !!!!
                 vars.player = game.ReadPointer((IntPtr)vars.player);
                 vars.player = game.ReadPointer((IntPtr)vars.player);
                 vars.playerController = game.ReadPointer((IntPtr)vars.player + 0x338);
-                vars.largeWorldStreamer = game.ReadPointer((IntPtr)vars.largeWorldStreamer);
-                vars.largeWorldStreamer = game.ReadPointer((IntPtr)vars.largeWorldStreamer);
+
+                vars.uGUI = game.ReadPointer((IntPtr)vars.uGUI); //follow the pointer to the pointer to uGUI._main
+                vars.uGUI = game.ReadPointer((IntPtr)vars.uGUI); //follow the pointer to uGUI._main
+                vars.SceneRespawning = game.ReadPointer((IntPtr)vars.uGUI + 0x38); //to uGUI._main.respawning
+                vars.LoadingBackground = game.ReadPointer((IntPtr)vars.SceneRespawning + 0x20); //to uGUI._main.respawning.loadingBackground
+                vars.LoadingBackgroundSequence = game.ReadPointer((IntPtr)vars.LoadingBackground + 0x20); // to uGUI._main.respawning.loadingBackground.sequence
+
                 vars.Dbg("All signatures found");
                 vars.Dbg("Player main found at 0x" + vars.player.ToString("X"));
-                vars.Dbg("Player.PlayerController found at 0x" + vars.playerController.ToString("X"));
+                //vars.Dbg("Player.PlayerController found at 0x" + vars.playerController.ToString("X"));
+                vars.Dbg("uGUI main found at 0x" + vars.uGUI.ToString("X"));
+                //vars.Dbg("uGUI.SceneRespawning found at 0x" + vars.SceneRespawning.ToString("X"));
+                //vars.Dbg("uGUI.SceneRespawning.loadingBackground found at 0x" + vars.LoadingBackground.ToString("X"));
+                //vars.Dbg("uGUI.SceneRespawning.loadingBackground.sequence found at 0x" + vars.LoadingBackgroundSequence.ToString("X"));
                 
                 break;
             }
             Thread.Sleep(500);
         }
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
-        //vars.largeWorldIdle
-        
+        vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
+        vars.Dbg("closing thread");
     });
     vars.sigScanThread.Start();
 }
@@ -79,18 +90,19 @@ update
 {
     if (vars.sigScanThread.IsAlive) { return false; }
     vars.playerInputEnabled.Update(game);
-    //vars.Dbg("playerInputEnabled is " + vars.playerInputEnabled.Current);
+    vars.respawning.Update(game);
+    //vars.Dbg("respawning is " + vars.respawning.Current);
 }
 
 start
 {
-    //if (current.introPlaying && !old.playerInputEnabled && current.playerInputEnabled) { return true; }
+    
 }
 
 isLoading
 {
-    //if (current.deathLoadingScreenActive && settings["loadRemove"]) { return true; }
-    //else { return false; }
+    if (vars.respawning.Current && settings["loadRemove"]) { return true; }
+    else { return false; }
 }
 
 exit
