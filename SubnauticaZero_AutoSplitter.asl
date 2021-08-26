@@ -14,6 +14,9 @@ startup
 
     vars.playerSigOffset = 2;
     vars.playerSignature = "48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 c0 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 90";
+    vars.largeWorldStreamerOffset = 9;
+    vars.largeWorldStreamerSignature = "48 89 75 f8 48 8b f1 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 d8 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 48 8d 6d 00 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 48 8b 45 d8 c6 86";
+
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
 }
 
@@ -29,6 +32,8 @@ init
         
         var playerTarget = new SigScanTarget(vars.playerSigOffset, vars.playerSignature);
         vars.player = IntPtr.Zero;
+        var largeWorldTarget = new SigScanTarget(vars.largeWorldStreamerOffset, vars.largeWorldStreamerSignature);
+        vars.largeWorldStreamer = IntPtr.Zero;
 
         while (!vars.token.IsCancellationRequested)
         {
@@ -41,15 +46,20 @@ init
                 if (vars.player == IntPtr.Zero && (vars.player = scanner.Scan(playerTarget)) != IntPtr.Zero) 
                 {
                     vars.Dbg("Player main pointer found at " + vars.player.ToString("X"));
-                    break;
+                }
+                if (vars.largeWorldStreamer == IntPtr.Zero && (vars.largeWorldStreamer = scanner.Scan(largeWorldTarget)) != IntPtr.Zero)
+                {
+                    vars.Dbg("largeWorldStreamer main pointer found at 0x" + vars.largeWorldStreamer.ToString("X"));
                 }
                 if (p % 100 == 0) { Thread.Sleep(20); } //for less cpu use
             }
-            if (vars.player != IntPtr.Zero)
+            if (vars.player != IntPtr.Zero && vars.largeWorldStreamer != IntPtr.Zero)
             {
                 vars.player = game.ReadPointer((IntPtr)vars.player);
                 vars.player = game.ReadPointer((IntPtr)vars.player);
                 vars.playerController = game.ReadPointer((IntPtr)vars.player + 0x338);
+                vars.largeWorldStreamer = game.ReadPointer((IntPtr)vars.largeWorldStreamer);
+                vars.largeWorldStreamer = game.ReadPointer((IntPtr)vars.largeWorldStreamer);
                 vars.Dbg("All signatures found");
                 vars.Dbg("Player main found at 0x" + vars.player.ToString("X"));
                 vars.Dbg("Player.PlayerController found at 0x" + vars.playerController.ToString("X"));
@@ -59,6 +69,7 @@ init
             Thread.Sleep(500);
         }
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
+        //vars.largeWorldIdle
         
     });
     vars.sigScanThread.Start();
@@ -68,7 +79,7 @@ update
 {
     if (vars.sigScanThread.IsAlive) { return false; }
     vars.playerInputEnabled.Update(game);
-    vars.Dbg("playerInputEnabled is " + vars.playerInputEnabled.Current);
+    //vars.Dbg("playerInputEnabled is " + vars.playerInputEnabled.Current);
 }
 
 start
