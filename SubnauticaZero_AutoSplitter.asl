@@ -27,7 +27,7 @@ init
     {
         vars.Dbg("starting thread");
         
-        var playerTarget = new SigScanTarget(2, "48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 c0 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 90");
+        var playerTarget = new SigScanTarget(vars.playerSigOffset, vars.playerSignature);
         vars.player = IntPtr.Zero;
 
         while (!vars.token.IsCancellationRequested)
@@ -37,29 +37,31 @@ init
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
                 if (vars.player == IntPtr.Zero && (vars.player = scanner.Scan(playerTarget)) != IntPtr.Zero) 
-                    { vars.Dbg("Player Awake signature found"); }
+                    { vars.Dbg("Player main pointer found at " + vars.player.ToString("X")); }
             }
             if (vars.player != IntPtr.Zero)
             {
                 vars.player = game.ReadPointer((IntPtr)vars.player);
+                vars.player = game.ReadPointer((IntPtr)vars.player);
+                vars.playerController = game.ReadPointer((IntPtr)vars.player + 0x338);
                 vars.Dbg("All signatures found");
+                vars.Dbg("Player main found at 0x" + vars.player.ToString("X"));
+                vars.Dbg("Player.PlayerController found at 0x" + vars.playerController.ToString("X"));
+                //vars.Dbg("Player.PlayerController.inputEnabled should be at " + vars.playerControllerToString("X"));
+                break;
             }
-
-
-
-
         }
+        vars.playerInputEnabled = new MemoryWatcher<bool>(new DeepPointer(vars.playerController, 0x68));
         
-        vars.sigScanThread.Start();
     });
-
+    vars.sigScanThread.Start();
 }
 
 update
 {
-    //vars.shouldStart = current.introPlaying && !old.playerInputEnabled && current.playerInputEnabled;
-    //print("playerInput is " + current.playerInputEnabled + ", introPlaying is " + current.introPlaying);
-    //if (vars.shouldStart) { print("timer should start"); }
+    if (vars.sigScanThread.IsAlive) { return false; }
+    vars.playerInputEnabled.Update(game);
+    vars.Dbg("playerInputEnabled is " + vars.playerInputEnabled.Current);
 }
 
 start
