@@ -83,8 +83,6 @@ init
                 vars.LoadingBackground = game.ReadPointer((IntPtr)vars.SceneRespawning + 0x20); //to uGUI._main.respawning.loadingBackground
                 vars.LoadingBackgroundSequence = game.ReadPointer((IntPtr)vars.LoadingBackground + 0x20); // to uGUI._main.respawning.loadingBackground.sequence
 
-                vars.SceneLoading = game.ReadPointer((IntPtr)vars.uGUI + 0x30);
-
                 vars.isIntroActiveAddress = game.ReadPointer((IntPtr)vars.isIntroActiveAddress);
 
                 vars.Dbg("All signatures found");
@@ -104,7 +102,6 @@ init
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.isIntroActive = new MemoryWatcher<bool>(vars.isIntroActiveAddress);
-        vars.isLoading = new MemoryWatcher<bool>(vars.SceneLoading + 0xa0);
 
         //this crashes Livesplit for some reason ???
         //vars.MemWatchers = new MemoryWatcherList() {
@@ -135,7 +132,6 @@ update
     vars.playerInputEnabled.Update(game);
     vars.respawning.Update(game);
     vars.isIntroActive.Update(game);
-    vars.isLoading.Update(game);
 
     //if (vars.count++ % 600 == 0)
     //{
