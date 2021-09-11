@@ -1,5 +1,8 @@
+// I apologize for this horrendously messy code, if you have any questions message me on Discord at Meeperty#1357
+
 state ("SubnauticaZero")
 {
+    //these are just here for reference
     //bool playerInputEnabled: "UnityPlayer.dll", 0x1795118, 0x20, 0xd0, 0x8, 0x60, 0x40, 0x48, 0x68;
     //bool introPlaying: "UnityPlayer.dll", 0x179c578, 0xd0, 0xb0, 0x20, 0xd0, 0x100, 0xa0, 0xa8;
 
@@ -20,6 +23,8 @@ startup
     vars.getIsIntroActiveSignature = "33 d2 48 8d 64 24 00 90 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 85 c0 75 0f 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 0fb6 00 eb 05 b8 01000000 48 8d 65 00 5d c3";
 
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
+
+    vars.introEndedAtCount = 0;
 }
 
 init
@@ -66,7 +71,6 @@ init
             if (vars.playerSignaturePtr != IntPtr.Zero && vars.uGUI != IntPtr.Zero && vars.isIntroActiveAddress != IntPtr.Zero)
             {
                 //DONT FORGET THE 0x !!!!
-                //vars.playerMain = game.ReadPointer((IntPtr)vars.player); //for updating the pointer when entering a new game
                 vars.playerMain = game.ReadPointer((IntPtr)vars.playerSignaturePtr);
                 vars.playerWatcher = new MemoryWatcher<IntPtr>(vars.playerMain);
                 vars.player = game.ReadPointer((IntPtr)vars.playerMain);
@@ -78,6 +82,8 @@ init
                 vars.SceneRespawning = game.ReadPointer((IntPtr)vars.uGUI + 0x38); //to uGUI._main.respawning
                 vars.LoadingBackground = game.ReadPointer((IntPtr)vars.SceneRespawning + 0x20); //to uGUI._main.respawning.loadingBackground
                 vars.LoadingBackgroundSequence = game.ReadPointer((IntPtr)vars.LoadingBackground + 0x20); // to uGUI._main.respawning.loadingBackground.sequence
+
+                vars.SceneLoading = game.ReadPointer((IntPtr)vars.uGUI + 0x30);
 
                 vars.isIntroActiveAddress = game.ReadPointer((IntPtr)vars.isIntroActiveAddress);
 
@@ -94,9 +100,22 @@ init
             }
             Thread.Sleep(250);
         }
+
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.isIntroActive = new MemoryWatcher<bool>(vars.isIntroActiveAddress);
+        vars.isLoading = new MemoryWatcher<bool>(vars.SceneLoading + 0xa0);
+
+        //this crashes Livesplit for some reason ???
+        //vars.MemWatchers = new MemoryWatcherList() {
+        //    vars.playerInputEnabled,
+        //    vars.respawing,
+        //    vars.isIntroActive,
+        //    vars.playerWatcher,
+        //    vars.uGUIMainPtr,
+        //    vars.isLoading
+        //};
+
         vars.Dbg("closing main sig scan thread");
         vars.Timer = 500;
     });
@@ -110,16 +129,18 @@ update
 {
     if (vars.sigScanThread.IsAlive) { return false; }
 
+    vars.playerWatcher.Update(game);
+    vars.uGUIMainPtr.Update(game);
+
     vars.playerInputEnabled.Update(game);
     vars.respawning.Update(game);
     vars.isIntroActive.Update(game);
-    vars.uGUIMainPtr.Update(game);
-    vars.playerWatcher.Update(game);
+    vars.isLoading.Update(game);
 
-    if (vars.count++ % 6000 == 0)
-    {
-        vars.Dbg("uGUI watcher: 0x" + vars.uGUIMainPtr.Current.ToString());
-    }
+    //if (vars.count++ % 600 == 0)
+    //{
+    //    vars.Dbg("isLoading: " + vars.isLoading.Current);
+    //}
 
     //vars.Dbg("input is active " + vars.playerInputEnabled.Current);
     if (vars.Timer != 0) { vars.Timer -= 1; }
@@ -131,6 +152,8 @@ update
         vars.playerController = game.ReadPointer((IntPtr)vars.player + 0x338);
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.Dbg("player updated sucessfully");
+        vars.introEndedAtCount = 0;
+        vars.Timer = 50;
     }
     if (vars.uGUIMainPtr.Current != vars.uGUIMainPtr.Old)
     {
@@ -144,13 +167,33 @@ update
     }
     //vars.Dbg(vars.respawning.Current.ToString());
 
+    //for not skipping intro edge case
+    if (!vars.isIntroActive.Current && vars.isIntroActive.Old)
+    {
+        vars.introEndedAtCount = vars.count;
+    }
 
+    if (!vars.isIntroActive.Current && vars.isIntroActive.Old && !vars.playerInputEnabled.Current)
+    {
+        vars.Dbg(vars.count);
+    }
 }
 
 //capitalize Current for MemoryWatchers
+//names of MemWatchers:
+//respawning
+//playerInputEnabled
+//isIntroActive
 start
 {
-    if (vars.playerInputEnabled.Current && !vars.playerInputEnabled.Old && vars.isIntroActive.Current) { return true; }
+    if (
+        (vars.isIntroActive.Current || vars.introEndedAtCount + 2 >= vars.count) //so it works if you dont skip the intro
+        && vars.playerInputEnabled.Current
+        && !vars.playerInputEnabled.Old
+        && vars.Timer == 0
+       )
+    { vars.introEndedAtCount = 0; return true; }
+    //vars.Dbg(vars.count);
 }
 
 isLoading
