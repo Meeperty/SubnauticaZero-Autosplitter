@@ -21,6 +21,8 @@ startup
     vars.uGUISignature = "55 48 8b ec 48 83 ec 20 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 8b 08 33 d2 48 8d ad ?? ?? ?? ?? 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 85 c0 74 2c 48 b8";
     vars.getIsIntroActiveSigOffset = 27;
     vars.getIsIntroActiveSignature = "33 d2 48 8d 64 24 00 90 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 85 c0 75 0f 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 0fb6 00 eb 05 b8 01000000 48 8d 65 00 5d c3";
+    vars.storyGoalManagerSigOffset = 6;
+    vars.storyGoalManagerSignature = "48 89 45 a0 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 88 48 b9";
 
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
 
@@ -35,7 +37,7 @@ init
     vars.sigScanToken = vars.sigScanTokenSource.Token;
     vars.sigScanThread = new Thread(() =>
     {
-        vars.Dbg("starting main sig scan thread");
+        vars.Dbg("initiating main sig scan thread");
         
         var playerTarget = new SigScanTarget(vars.playerSigOffset, vars.playerSignature);
         vars.playerSignaturePtr = IntPtr.Zero;
@@ -44,6 +46,8 @@ init
         vars.uGUI = IntPtr.Zero;
         var isIntroActiveTarget = new SigScanTarget(vars.getIsIntroActiveSigOffset, vars.getIsIntroActiveSignature);
         vars.isIntroActiveAddress = IntPtr.Zero;
+        var storyGoalManagerTarget = new SigScanTarget(vars.storyGoalManagerSigOffset, vars.storyGoalManagerSignature);
+        vars.storyGoalManagerMainAddress = IntPtr.Zero;
 
         while (!vars.sigScanToken.IsCancellationRequested)
         {
@@ -64,7 +68,11 @@ init
                 }
                 if(vars.isIntroActiveAddress == IntPtr.Zero && (vars.isIntroActiveAddress = scanner.Scan(isIntroActiveTarget)) != IntPtr.Zero)
                 {
-                    //vars.Dbg("found");
+                    
+                }
+                if(vars.storyGoalManagerMainAddress == IntPtr.Zero && (vars.storyGoalManagerMainAddress = scanner.Scan(storyGoalManagerTarget)) != IntPtr.Zero)
+                {
+                    vars.Dbg("storyGoalManager main pointer found at " + vars.storyGoalManagerMainAddress.ToString("X"));
                 }
                 if (p % 50 == 0) { Thread.Sleep(25); } //for less cpu use
             }
@@ -85,41 +93,51 @@ init
 
                 vars.isIntroActiveAddress = game.ReadPointer((IntPtr)vars.isIntroActiveAddress);
 
+                vars.storyGoalManagerMain = game.ReadPointer((IntPtr)vars.uGUI);
+                vars.storyGoalManagerMainWatcher = new MemoryWatcher<IntPtr>(vars.storyGoalManagerMainAddress);
+                vars.storyGoalManager = game.ReadPointer((IntPtr)vars.storyGoalManagerMain);
+                vars.completedGoals = game.ReadPointer((IntPtr)vars.storyGoalManager + 0xa0);
+                vars.goalsSlots = game.ReadPointer((IntPtr)vars.completedGoals + 0x18);
+
                 vars.Dbg("All signatures found");
+
                 vars.Dbg("Player main found at 0x" + vars.player.ToString("X"));
                 vars.Dbg("Player.PlayerController found at 0x" + vars.playerController.ToString("X"));
+
                 vars.Dbg("uGUI main found at 0x" + vars.uGUI.ToString("X"));
-                //vars.Dbg("uGUI.SceneRespawning found at 0x" + vars.SceneRespawning.ToString("X"));
-                //vars.Dbg("uGUI.SceneRespawning.loadingBackground found at 0x" + vars.LoadingBackground.ToString("X"));
-                //vars.Dbg("uGUI.SceneRespawning.loadingBackground.sequence found at 0x" + vars.LoadingBackgroundSequence.ToString("X"));
+
+                vars.Dbg("storyGoalManager main found at 0x" + vars.storyGoalManager.ToString("X"));
+
                 vars.Dbg("isIntroActive address found at 0x" + vars.isIntroActiveAddress.ToString("X"));
                 
                 break;
             }
             Thread.Sleep(250);
         }
+        vars.completedGoalsCount = new MemoryWatcher<int>(vars.completedGoals + 0x30);
 
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.isIntroActive = new MemoryWatcher<bool>(vars.isIntroActiveAddress);
 
-        //this crashes Livesplit for some reason ???
-        //vars.MemWatchers = new MemoryWatcherList() {
-        //    vars.playerInputEnabled,
-        //    vars.respawing,
-        //    vars.isIntroActive,
-        //    vars.playerWatcher,
-        //    vars.uGUIMainPtr,
-        //    vars.isLoading
-        //};
+        //vars.completedGoalStrings = new IntPtr[vars.completedGoalsCount + 1];
+        //for (int slot = 0; slot < vars.completedGoalsCount; slot++)
+        //{
+        //    IntPtr pointer = vars.goalsSlots + 0x40 + (slot * 8);
+        //    vars.completedGoalPointers[slot] = pointer;
+        //}
+        //vars.completedGoalStrings = new string[vars.completedGoalsCount + 1];
+        //for (int i = 0; i < vars.completedGoalPointers.Length; i++)
+        //{
+        //    //string output = System.Runtime.InteropServices.Marshal.PtrToStringUni(vars.completedGoalPointers[i]);
+        //}
 
         vars.Dbg("closing main sig scan thread");
         vars.Timer = 500;
     });
     vars.sigScanThread.Priority = ThreadPriority.Lowest;
+    vars.Dbg("starting main sig scan thread");
     vars.sigScanThread.Start();
-    //vars.Assembly = modules.First(mod => mod.ModuleName.StartsWith("Assembly-CSharp"));
-    //vars.Dbg(vars.Assembly.ModuleName);
 }
 
 update
@@ -128,6 +146,7 @@ update
 
     vars.playerWatcher.Update(game);
     vars.uGUIMainPtr.Update(game);
+    vars.storyGoalManagerMainWatcher.Update(game);
 
     vars.playerInputEnabled.Update(game);
     vars.respawning.Update(game);
@@ -161,6 +180,10 @@ update
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.Dbg("uGUI updated sucessfully");
     }
+    if (vars.storyGoalManagerMainWatcher.Current != vars.storyGoalManagerMainWatcher.Old)
+    {
+        vars.Dbg("storyGoalManager has changed to 0x" + vars.storyGoalManagerMainWatcher.Current.ToString("X"));
+    }
     //vars.Dbg(vars.respawning.Current.ToString());
 
     //for not skipping intro edge case
@@ -172,6 +195,11 @@ update
     if (!vars.isIntroActive.Current && vars.isIntroActive.Old && !vars.playerInputEnabled.Current)
     {
         vars.Dbg(vars.count);
+    }
+
+    if (vars.completedGoalsCount.Current != vars.completedGoalsCount.Old)
+    {
+
     }
 }
 
