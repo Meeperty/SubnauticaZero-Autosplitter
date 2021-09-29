@@ -22,7 +22,7 @@ startup
     vars.getIsIntroActiveSigOffset = 27;
     vars.getIsIntroActiveSignature = "33 d2 48 8d 64 24 00 90 49 bb ?? ?? ?? ?? ?? ?? ?? ?? 41 ff d3 85 c0 75 0f 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 0fb6 00 eb 05 b8 01000000 48 8d 65 00 5d c3";
     vars.storyGoalManagerSigOffset = 6;
-    vars.storyGoalManagerSignature = "48 89 45 a0 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 88 48 b9";
+    vars.storyGoalManagerSignature = "48 89 45 a0 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 88 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 48 8d ad";
 
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
 
@@ -38,7 +38,7 @@ init
     vars.sigScanThread = new Thread(() =>
     {
         vars.Dbg("initiating main sig scan thread");
-        
+
         var playerTarget = new SigScanTarget(vars.playerSigOffset, vars.playerSignature);
         vars.playerSignaturePtr = IntPtr.Zero;
         vars.player = IntPtr.Zero;
@@ -58,19 +58,19 @@ init
                 p++;
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
-                if (vars.playerSignaturePtr == IntPtr.Zero && (vars.playerSignaturePtr = scanner.Scan(playerTarget)) != IntPtr.Zero) 
+                if (vars.playerSignaturePtr == IntPtr.Zero && (vars.playerSignaturePtr = scanner.Scan(playerTarget)) != IntPtr.Zero)
                 {
                     vars.Dbg("Player signature pointer found at " + vars.playerSignaturePtr.ToString("X"));
                 }
-                if(vars.uGUI == IntPtr.Zero && (vars.uGUI = scanner.Scan(uGUITarget)) != IntPtr.Zero)
+                if (vars.uGUI == IntPtr.Zero && (vars.uGUI = scanner.Scan(uGUITarget)) != IntPtr.Zero)
                 {
                     vars.Dbg("uGUI main pointer found at " + vars.uGUI.ToString("X"));
                 }
-                if(vars.isIntroActiveAddress == IntPtr.Zero && (vars.isIntroActiveAddress = scanner.Scan(isIntroActiveTarget)) != IntPtr.Zero)
+                if (vars.isIntroActiveAddress == IntPtr.Zero && (vars.isIntroActiveAddress = scanner.Scan(isIntroActiveTarget)) != IntPtr.Zero)
                 {
-                    
+
                 }
-                if(vars.storyGoalManagerMainAddress == IntPtr.Zero && (vars.storyGoalManagerMainAddress = scanner.Scan(storyGoalManagerTarget)) != IntPtr.Zero)
+                if (vars.storyGoalManagerMainAddress == IntPtr.Zero && (vars.storyGoalManagerMainAddress = scanner.Scan(storyGoalManagerTarget)) != IntPtr.Zero)
                 {
                     vars.Dbg("storyGoalManager main pointer found at " + vars.storyGoalManagerMainAddress.ToString("X"));
                 }
@@ -93,11 +93,14 @@ init
 
                 vars.isIntroActiveAddress = game.ReadPointer((IntPtr)vars.isIntroActiveAddress);
 
-                vars.storyGoalManagerMain = game.ReadPointer((IntPtr)vars.uGUI);
-                vars.storyGoalManagerMainWatcher = new MemoryWatcher<IntPtr>(vars.storyGoalManagerMainAddress);
+                vars.storyGoalManagerMain = game.ReadPointer((IntPtr)vars.storyGoalManagerMainAddress);
+                vars.storyGoalManagerMainWatcher = new MemoryWatcher<IntPtr>(vars.storyGoalManagerMain);
                 vars.storyGoalManager = game.ReadPointer((IntPtr)vars.storyGoalManagerMain);
                 vars.completedGoals = game.ReadPointer((IntPtr)vars.storyGoalManager + 0xa0);
                 vars.goalsSlots = game.ReadPointer((IntPtr)vars.completedGoals + 0x18);
+
+                vars.Dbg("completedGoals is: " + vars.completedGoals.ToString("X"));
+                vars.Dbg("goalsSlots is:" + vars.goalsSlots.ToString("X"));
 
                 vars.Dbg("All signatures found");
 
@@ -109,28 +112,37 @@ init
                 vars.Dbg("storyGoalManager main found at 0x" + vars.storyGoalManager.ToString("X"));
 
                 vars.Dbg("isIntroActive address found at 0x" + vars.isIntroActiveAddress.ToString("X"));
-                
+
                 break;
             }
             Thread.Sleep(250);
         }
         vars.completedGoalsCount = new MemoryWatcher<int>(vars.completedGoals + 0x30);
+        vars.Dbg(vars.completedGoalsCount.Current);
 
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.isIntroActive = new MemoryWatcher<bool>(vars.isIntroActiveAddress);
 
-        //vars.completedGoalStrings = new IntPtr[vars.completedGoalsCount + 1];
-        //for (int slot = 0; slot < vars.completedGoalsCount; slot++)
-        //{
-        //    IntPtr pointer = vars.goalsSlots + 0x40 + (slot * 8);
-        //    vars.completedGoalPointers[slot] = pointer;
-        //}
-        //vars.completedGoalStrings = new string[vars.completedGoalsCount + 1];
-        //for (int i = 0; i < vars.completedGoalPointers.Length; i++)
-        //{
-        //    //string output = System.Runtime.InteropServices.Marshal.PtrToStringUni(vars.completedGoalPointers[i]);
-        //}
+        vars.completedGoalPointers = new IntPtr[vars.completedGoalsCount.Current + 1];
+        for (int slot = 0; slot < vars.completedGoalsCount.Current; slot++)
+        {
+            IntPtr pointer = vars.goalsSlots + 0x40 + (slot * 8);
+            vars.completedGoalPointers[slot] = pointer;
+            Thread.Sleep(50);
+        }
+        vars.Dbg("completedGoalPointers has a length of " + vars.completedGoalPointers.Length);
+        vars.Dbg(vars.completedGoalPointers[0].ToString()); 
+        vars.completedGoalStrings = new string[vars.completedGoalsCount.Current + 1];
+        for (int i = 0; i < vars.completedGoalPointers.Length; i++)
+        {
+            if (vars.completedGoalPointers[i] != IntPtr.Zero)
+            {
+                //string output = System.Runtime.InteropServices.Marshal.PtrToStringUni(vars.completedGoalPointers[i]);
+            }
+            else { vars.Dbg("completedGoalPointer " + i.ToString() + " was null"); }
+            Thread.Sleep(10);
+        }
 
         vars.Dbg("closing main sig scan thread");
         vars.Timer = 500;
@@ -143,6 +155,8 @@ init
 update
 {
     if (vars.sigScanThread.IsAlive) { return false; }
+
+    vars.completedGoalsCount.Update(game);
 
     vars.playerWatcher.Update(game);
     vars.uGUIMainPtr.Update(game);
@@ -184,7 +198,12 @@ update
     {
         vars.Dbg("storyGoalManager has changed to 0x" + vars.storyGoalManagerMainWatcher.Current.ToString("X"));
     }
-    //vars.Dbg(vars.respawning.Current.ToString());
+
+    if (vars.completedGoalsCount.Current != vars.completedGoalsCount.Old)
+    {
+        vars.Dbg("now " + vars.completedGoalsCount.Current + " story goals complete");
+
+    }
 
     //for not skipping intro edge case
     if (!vars.isIntroActive.Current && vars.isIntroActive.Old)
