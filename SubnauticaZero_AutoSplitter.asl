@@ -119,7 +119,6 @@ init
         }
         vars.completedGoalsCount = new MemoryWatcher<int>(vars.completedGoals + 0x30);
         vars.completedGoalsCount.Update(game);
-        vars.Dbg(vars.completedGoalsCount.Current);
 
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
@@ -138,9 +137,11 @@ init
         {
             if (vars.completedGoalPointers[i] != IntPtr.Zero)
             {
-                vars.Dbg(vars.completedGoalPointers[i].ToString("X"));
-                //string output = System.Runtime.InteropServices.Marshal.PtrToStringUni(vars.completedGoalPointers[i]);
-                //vars.Dbg(output);
+                IntPtr stringLocation = game.ReadPointer((IntPtr)vars.completedGoalPointers[i]) + 0x14;
+                vars.stringBuilder = new System.Text.StringBuilder(128);
+                game.ReadString((IntPtr)stringLocation, ReadStringType.UTF16, (System.Text.StringBuilder)vars.stringBuilder);
+                string output = vars.stringBuilder.ToString();
+                vars.Dbg(output);
             }
             else { vars.Dbg("completedGoalPointer " + i.ToString() + " was null"); }
             Thread.Sleep(10);
