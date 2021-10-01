@@ -118,27 +118,29 @@ init
             Thread.Sleep(250);
         }
         vars.completedGoalsCount = new MemoryWatcher<int>(vars.completedGoals + 0x30);
+        vars.completedGoalsCount.Update(game);
         vars.Dbg(vars.completedGoalsCount.Current);
 
         vars.playerInputEnabled = new MemoryWatcher<bool>(vars.playerController + 0x68);
         vars.respawning = new MemoryWatcher<bool>(vars.LoadingBackgroundSequence + 0x20);
         vars.isIntroActive = new MemoryWatcher<bool>(vars.isIntroActiveAddress);
 
-        vars.completedGoalPointers = new IntPtr[vars.completedGoalsCount.Current + 1];
+        vars.completedGoalPointers = new IntPtr[vars.completedGoalsCount.Current];
         for (int slot = 0; slot < vars.completedGoalsCount.Current; slot++)
         {
-            IntPtr pointer = vars.goalsSlots + 0x40 + (slot * 8);
+            IntPtr pointer = vars.goalsSlots + 0x28 + (slot * 0x10);
             vars.completedGoalPointers[slot] = pointer;
-            Thread.Sleep(50);
+            Thread.Sleep(10);
         }
         vars.Dbg("completedGoalPointers has a length of " + vars.completedGoalPointers.Length);
-        vars.Dbg(vars.completedGoalPointers[0].ToString()); 
-        vars.completedGoalStrings = new string[vars.completedGoalsCount.Current + 1];
+        vars.completedGoalStrings = new string[vars.completedGoalsCount.Current];
         for (int i = 0; i < vars.completedGoalPointers.Length; i++)
         {
             if (vars.completedGoalPointers[i] != IntPtr.Zero)
             {
+                vars.Dbg(vars.completedGoalPointers[i].ToString("X"));
                 //string output = System.Runtime.InteropServices.Marshal.PtrToStringUni(vars.completedGoalPointers[i]);
+                //vars.Dbg(output);
             }
             else { vars.Dbg("completedGoalPointer " + i.ToString() + " was null"); }
             Thread.Sleep(10);
@@ -201,8 +203,7 @@ update
 
     if (vars.completedGoalsCount.Current != vars.completedGoalsCount.Old)
     {
-        vars.Dbg("now " + vars.completedGoalsCount.Current + " story goals complete");
-
+        vars.Dbg("now " + vars.completedGoalsCount.Current + " story goals completed");
     }
 
     //for not skipping intro edge case
@@ -214,11 +215,6 @@ update
     if (!vars.isIntroActive.Current && vars.isIntroActive.Old && !vars.playerInputEnabled.Current)
     {
         vars.Dbg(vars.count);
-    }
-
-    if (vars.completedGoalsCount.Current != vars.completedGoalsCount.Old)
-    {
-
     }
 }
 
