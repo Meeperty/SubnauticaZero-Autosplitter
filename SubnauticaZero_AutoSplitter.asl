@@ -27,6 +27,7 @@ startup
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
 
     vars.introEndedAtCount = 0;
+    vars.storyGoalChangeTimer = 0;
 }
 
 init
@@ -202,9 +203,36 @@ update
         vars.Dbg("storyGoalManager has changed to 0x" + vars.storyGoalManagerMainWatcher.Current.ToString("X"));
     }
 
+    //vars.storyGoalChangeTimer
+
     if (vars.completedGoalsCount.Current != vars.completedGoalsCount.Old)
     {
         vars.Dbg("now " + vars.completedGoalsCount.Current + " story goals completed");
+        int goalsCount = vars.completedGoalsCount.Current;
+
+        vars.completedGoalPointers = new IntPtr[goalsCount];
+        for (int slot = 0; slot < goalsCount; slot++)
+        {
+            IntPtr pointer = vars.goalsSlots + 0x28 + (slot * 0x10);
+            vars.completedGoalPointers[slot] = pointer;
+            Thread.Sleep(10);
+        }
+
+        vars.Dbg("completedGoalPointers now has a length of " + vars.completedGoalPointers.Length);
+        vars.completedGoalStrings = new string[goalsCount];
+        for (int i = 0; i < vars.completedGoalPointers.Length; i++)
+        {
+            if (vars.completedGoalPointers[i] != IntPtr.Zero)
+            {
+                IntPtr stringLocation = game.ReadPointer((IntPtr)vars.completedGoalPointers[i]) + 0x14;
+                vars.stringBuilder = new System.Text.StringBuilder(128);
+                game.ReadString((IntPtr)stringLocation, ReadStringType.UTF16, (System.Text.StringBuilder)vars.stringBuilder);
+                string output = vars.stringBuilder.ToString();
+                vars.Dbg(output);
+            }
+            else { vars.Dbg("completedGoalPointer " + i.ToString() + " was null"); }
+            Thread.Sleep(10);
+        }
     }
 
     //for not skipping intro edge case
