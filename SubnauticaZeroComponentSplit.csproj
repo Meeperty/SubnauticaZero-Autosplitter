@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\LiveSplit_1.8.16\Components\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -55,6 +55,18 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="SubnauticaZeroComponentFactory.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SubnauticaZero_AutoSplitter.asl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="pointer names.txt" />
+    <Content Include="SubnauticaZero-Splitter.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="TextFile1.resx">
+      <SubType>Designer</SubType>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

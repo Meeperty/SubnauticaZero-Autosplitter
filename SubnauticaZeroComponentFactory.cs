@@ -3,7 +3,7 @@ using LiveSplit.Model;
 using LiveSplit.UI.Components;
 using SubnauticaZeroComponentSplit;
 
-[assembly :ComponentFactory(typeof(SubnauticaZeroComponentFactory))]
+[assembly: ComponentFactory(typeof(SubnauticaZeroComponentFactory))]
 
 namespace SubnauticaZeroComponentSplit
 {

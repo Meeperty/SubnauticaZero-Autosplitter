@@ -1,0 +1,3 @@
+﻿__CodePointer is the address of the code that contains the address of the static field
+__FieldPointer is the address of said static field
+__InstancePointer is the address of the instance of the class

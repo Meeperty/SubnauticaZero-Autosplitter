@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<updates>
+	<update version="1.0.0">
+		<files>
+			<file path="bin/Debug/SubnauticaZeroComponentSplit.dll" status="changed" />
+		</files>
+		<changelog>
+			<change>thing</change>
+		</changelog>
+	</update>
+</updates>

@@ -7,7 +7,6 @@ namespace SubnauticaZeroComponentSplit
 {
     class SubnauticaZeroSettings : UserControl
     {
-        private 
 
     }
 }
