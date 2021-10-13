@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using LiveSplit.Model;
 using LiveSplit.UI;
 using LiveSplit.UI.Components.AutoSplit;
+using System.Diagnostics;
 
 namespace SubnauticaZeroComponentSplit
 {
@@ -14,6 +15,12 @@ namespace SubnauticaZeroComponentSplit
         public override string ComponentName => "Subnautica Below Zero Autosplitter";
 
         private readonly static SubnauticaZeroSettings settings = new SubnauticaZeroSettings();
+
+        public override void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode)
+        {
+            splitter.Update();
+            Debug.WriteLine("update");
+        }
 
         public override void SetSettings(XmlNode settings)
         {
@@ -33,6 +40,8 @@ namespace SubnauticaZeroComponentSplit
 
         public override void Dispose() { }
 
-        internal SubnauticaZeroComponent(LiveSplitState state) : base(new SubnauticaZeroSplitter(settings), state) { }
+        static SubnauticaZeroSplitter splitter = new SubnauticaZeroSplitter(settings);
+
+        internal SubnauticaZeroComponent(LiveSplitState state) : base(splitter, state) { }
     }
 }

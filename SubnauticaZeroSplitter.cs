@@ -14,6 +14,7 @@ namespace SubnauticaZeroComponentSplit
 {
     class SubnauticaZeroSplitter : IAutoSplitter
     {
+        private static void Dbg(string s) { Debug.WriteLine(s); }
         private Process game;
         private Timer timer;
         private readonly SubnauticaZeroSettings settings;
@@ -30,46 +31,65 @@ namespace SubnauticaZeroComponentSplit
 
         SigScanTarget playerTarget = new SigScanTarget(playerSigOffset, playerSignature);
         IntPtr playerCodePointer = nullptr;
+        MemoryWatcher<IntPtr> playerFieldWatcher;
+        MemoryWatcher<bool> playerInputEnabled;
+
 
         SigScanTarget uGUITarget = new SigScanTarget(uGUISigOffset, uGUISignature);
         IntPtr uGUICodePointer = nullptr;
+        MemoryWatcher<IntPtr> uGUIFieldWatcher;
+        MemoryWatcher<bool> respawning;
 
         SigScanTarget isIntroActiveTarget = new SigScanTarget(isIntroActiveSigOffset, isIntroActiveSignature);
         IntPtr isIntroActiveCodePointer = nullptr;
+        MemoryWatcher<bool> isIntroActive;
 
         SigScanTarget storyGoalManagerTarget = new SigScanTarget(storyGoalManagerSigOffset, storyGoalManagerSignature);
         IntPtr storyGoalManagerCodePointer = nullptr;
-
-
+        MemoryWatcher<IntPtr> storyGoalManagerFieldWatcher;
+        MemoryWatcher<int> completedGoalsCount;
+        
         internal SubnauticaZeroSplitter(SubnauticaZeroSettings settings)
         {
             this.settings = settings;
         }
 
-        public bool ShouldStart(LiveSplitState state)
+        public void Update()
         {
-            if(game is null)
+            if (game is null)
             {
+                Dbg("game is null, trying to find executable");
                 game = Process.GetProcessesByName("SubnauticaZero").FirstOrDefault(p => !p.HasExited);
-                if(!(game is null))
+                if (!(game is null))
                 {
-                    timer = new Timer(CheckMemory, null, 0, 2000);
+                    timer = new Timer(InitialMemoryCheck, null, 0, 8000);
                 }
-                return false;
             }
-            return false;
+            else
+            {
+
+            }
         }
 
-        public void CheckMemory(object o)
+        public bool ShouldStart(LiveSplitState state)
         {
+            return true;
+        }
 
+        public void InitialMemoryCheck(object o)
+        {
+            Dbg("Inital Memory Check");
             int p = 0;
             foreach (var page in game.MemoryPages())
             {
                 p++;
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
-                if (playerCodePointer == nullptr && (playerCodePointer = scanner.Scan(playerTarget)) != nullptr) {}
+                if (playerCodePointer == nullptr && (playerCodePointer = scanner.Scan(playerTarget)) != nullptr)
+                {
+                    playerFieldWatcher = new MemoryWatcher<IntPtr>(playerCodePointer);
+                    Dbg(playerCodePointer.ToString("X"));
+                }
 
                 if (uGUICodePointer == nullptr && (playerCodePointer = scanner.Scan(uGUITarget)) != nullptr) {}
 
@@ -80,9 +100,22 @@ namespace SubnauticaZeroComponentSplit
                 if (playerCodePointer != nullptr && uGUICodePointer != nullptr && isIntroActiveCodePointer != nullptr && storyGoalManagerCodePointer != nullptr)
                 {
                     timer.Dispose();
+                    RefreshPlayerAddresses();
+                    RefreshStoryGoals();
+                    Dbg("Signatures found");
                     break;
                 }
             }
+        }
+
+        public static void RefreshPlayerAddresses()
+        {
+
+        }
+
+        public static void RefreshStoryGoals()
+        {
+
         }
 
         public TimeSpan? GetGameTime(LiveSplitState state) { return null; }
