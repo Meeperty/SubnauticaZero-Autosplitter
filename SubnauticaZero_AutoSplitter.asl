@@ -1,15 +1,6 @@
 // I apologize for this horrendously messy code, if you have any questions message me on Discord at Meeperty#1357
 
-state ("SubnauticaZero")
-{
-    //these are just here for reference
-    //bool playerInputEnabled: "UnityPlayer.dll", 0x1795118, 0x20, 0xd0, 0x8, 0x60, 0x40, 0x48, 0x68;
-    //bool introPlaying: "UnityPlayer.dll", 0x179c578, 0xd0, 0xb0, 0x20, 0xd0, 0x100, 0xa0, 0xa8;
-
-    //ushort processingCell: "UnityPlayer.dll", 0x17951d8, 0xd0, 0x8, 0x60, 0x68, 0x30, 0x38, 0x28;
-    //bool largeWorldStreamerIdle: "UnityPlayer.dll", 0x1755010, 0x10, 0xd0, 0x8, 0x60, 0x68, 0x30, 0x1ab;
-    //bool deathLoadingScreenActive: "UnityPlayer.dll", 0x1793f68, 0x60, 0x7c0, 0xe90, 0x38, 0x20, 0x20, 0x20;
-}
+state("SubnauticaZero"){ }
 
 startup
 {
@@ -25,7 +16,7 @@ startup
     vars.storyGoalManagerSignature = "48 89 45 a0 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 30 48 89 45 88 48 b9 ?? ?? ?? ?? ?? ?? ?? ?? 48 8d ad";
 
     vars.Dbg = (Action<dynamic>)((output) => print("[SubnauticaZero Autosplit] " + output));
-
+    
     vars.introEndedAtCount = 0;
     vars.storyGoalChangeTimer = 0;
 }
@@ -262,6 +253,11 @@ start
        )
     { vars.introEndedAtCount = 0; return true; }
     //vars.Dbg(vars.count);
+}
+
+split
+{
+
 }
 
 isLoading
