@@ -31,21 +31,25 @@ namespace SubnauticaZeroComponentSplit
 
         SigScanTarget playerTarget = new SigScanTarget(playerSigOffset, playerSignature);
         IntPtr playerCodePointer = nullptr;
+        IntPtr playerScanPointer = nullptr;
         MemoryWatcher<IntPtr> playerFieldWatcher;
         MemoryWatcher<bool> playerInputEnabled;
 
 
         SigScanTarget uGUITarget = new SigScanTarget(uGUISigOffset, uGUISignature);
         IntPtr uGUICodePointer = nullptr;
+        IntPtr uGUIScanPointer = nullptr;
         MemoryWatcher<IntPtr> uGUIFieldWatcher;
         MemoryWatcher<bool> respawning;
 
         SigScanTarget isIntroActiveTarget = new SigScanTarget(isIntroActiveSigOffset, isIntroActiveSignature);
         IntPtr isIntroActiveCodePointer = nullptr;
+        IntPtr isIntroActiveScanPointer = nullptr;
         MemoryWatcher<bool> isIntroActive;
 
         SigScanTarget storyGoalManagerTarget = new SigScanTarget(storyGoalManagerSigOffset, storyGoalManagerSignature);
         IntPtr storyGoalManagerCodePointer = nullptr;
+        IntPtr storyGoalManagerScanPointer = nullptr;
         MemoryWatcher<IntPtr> storyGoalManagerFieldWatcher;
         MemoryWatcher<int> completedGoalsCount;
         
@@ -62,6 +66,7 @@ namespace SubnauticaZeroComponentSplit
                 game = Process.GetProcessesByName("SubnauticaZero").FirstOrDefault(p => !p.HasExited);
                 if (!(game is null))
                 {
+                    Dbg("game found");
                     timer = new Timer(InitialMemoryCheck, null, 0, 8000);
                 }
             }
@@ -69,11 +74,6 @@ namespace SubnauticaZeroComponentSplit
             {
 
             }
-        }
-
-        public bool ShouldStart(LiveSplitState state)
-        {
-            return true;
         }
 
         public void InitialMemoryCheck(object o)
@@ -85,22 +85,38 @@ namespace SubnauticaZeroComponentSplit
                 p++;
                 var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
 
-                if (playerCodePointer == nullptr && (playerCodePointer = scanner.Scan(playerTarget)) != nullptr)
+                if (playerScanPointer == nullptr && (playerScanPointer = scanner.Scan(playerTarget)) != nullptr)
                 {
-                    playerFieldWatcher = new MemoryWatcher<IntPtr>(playerCodePointer);
-                    Dbg(playerCodePointer.ToString("X"));
+                    playerFieldWatcher = new MemoryWatcher<IntPtr>(playerScanPointer);
+                    Dbg("playerCodePointer is " + playerScanPointer.ToString("X"));
+                    playerCodePointer = playerScanPointer;
                 }
 
-                if (uGUICodePointer == nullptr && (playerCodePointer = scanner.Scan(uGUITarget)) != nullptr) {}
+                if (uGUIScanPointer == nullptr && (uGUIScanPointer = scanner.Scan(uGUITarget)) != nullptr) 
+                {
+                    uGUIFieldWatcher = new MemoryWatcher<IntPtr>(uGUIScanPointer);
+                    Dbg("uGUICodePointer is " + uGUIScanPointer.ToString("X"));
+                    uGUICodePointer = uGUIScanPointer;
+                }
 
-                if (isIntroActiveCodePointer == nullptr && (isIntroActiveCodePointer = scanner.Scan(isIntroActiveTarget)) != nullptr) {}
+                if (isIntroActiveScanPointer == nullptr && (isIntroActiveScanPointer = scanner.Scan(isIntroActiveTarget)) != nullptr)
+                {
+                    isIntroActive = new MemoryWatcher<bool>(new DeepPointer(isIntroActiveScanPointer, 0));
+                    Dbg("isIntroActiveCodePointer is " + isIntroActiveScanPointer.ToString("X"));
+                    isIntroActiveCodePointer = isIntroActiveScanPointer;
+                }
 
-                if (storyGoalManagerCodePointer == nullptr && (storyGoalManagerCodePointer = scanner.Scan(storyGoalManagerTarget)) != nullptr) {}
+                if (storyGoalManagerScanPointer == nullptr && (storyGoalManagerScanPointer = scanner.Scan(storyGoalManagerTarget)) != nullptr)
+                {
+                    storyGoalManagerFieldWatcher = new MemoryWatcher<IntPtr>(storyGoalManagerScanPointer);
+                    Dbg("storyGoalManagerCodePointer is " + storyGoalManagerScanPointer.ToString("X"));
+                    storyGoalManagerCodePointer = storyGoalManagerScanPointer;
+                }
 
                 if (playerCodePointer != nullptr && uGUICodePointer != nullptr && isIntroActiveCodePointer != nullptr && storyGoalManagerCodePointer != nullptr)
                 {
                     timer.Dispose();
-                    RefreshPlayerAddresses();
+                    InitPlayerAddresses();
                     RefreshStoryGoals();
                     Dbg("Signatures found");
                     break;
@@ -108,12 +124,18 @@ namespace SubnauticaZeroComponentSplit
             }
         }
 
-        public static void RefreshPlayerAddresses()
+        public void InitPlayerAddresses()
+        {
+            playerFieldWatcher = new MemoryWatcher<IntPtr>(new DeepPointer(playerCodePointer, 0));
+            playerInputEnabled = new MemoryWatcher<bool>(new DeepPointer(playerFieldWatcher.Current, 0x338, 68));
+        }
+
+        public void RefreshPlayerAddresses()
         {
 
         }
 
-        public static void RefreshStoryGoals()
+        public void RefreshStoryGoals()
         {
 
         }
@@ -121,6 +143,11 @@ namespace SubnauticaZeroComponentSplit
         public TimeSpan? GetGameTime(LiveSplitState state) { return null; }
 
         public bool IsGameTimePaused(LiveSplitState state) { return false; }
+
+        public bool ShouldStart(LiveSplitState state)
+        {
+            return true;
+        }
 
         public bool ShouldSplit(LiveSplitState state) { return false; }
 
